@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: WLoseControl
+## Notes: lose control solo play remake
+## DefaultState: Enabled
+## SavedVariables: WLoseControlDB
+
+WLoseControl.lua
