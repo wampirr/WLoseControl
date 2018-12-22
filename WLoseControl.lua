@@ -5,8 +5,6 @@
 -- later you can add them to the lists
 local global_debug = 1;
 
-WLoseControlDB = WLoseControlDB or { scale = 2, timer = true, hidden = false, lock = false, PVPauras = {}, PVEauras = {}, }
-
 local pvp_debuffs = {
     -- Other
     [1604] = "Snare", -- Dazed
@@ -168,41 +166,24 @@ local pve_debuffs = {
 }
 -- priorities not applicable
 local pvp_blacklisted = {
-    [26013] = "Immune", -- BG Deserter
-    [69127] = "Immune", -- chill of the throne
-    [25771] = "Immune", -- forbearance
-    [57723] = "Immune", -- exhaustion
-    [6788] = "Immune", -- weakened soul
     --prof
     --[73117] = "Immune",	-- plague sickness
-    --sindra
-    [71052] = "Immune", -- frost aura
 }
 -- priorities not applicable
 local global_blacklisted = {
     [26013] = "Immune", -- BG Deserter
-    [69127] = "Immune", -- chill of the throne
     [25771] = "Immune", -- forbearance
     [57723] = "Immune", -- exhaustion
     [6788] = "Immune", -- weakened soul
-    --prof
-    --[73117] = "Immune",	-- plague sickness
-    --sindra
-    [71052] = "Immune", -- frost aura
 }
 -- priorities not applicable
 local pve_blacklisted = {
-    [26013] = "Immune", -- BG Deserter
-    [69127] = "Immune", -- chill of the throne
-    [25771] = "Immune", -- forbearance
-    [57723] = "Immune", -- exhaustion
-    [6788] = "Immune", -- weakened soul
     --prof
     --[73117] = "Immune",	-- plague sickness
     --sindra
     [71052] = "Immune", -- frost aura
 }
-local buffs = {
+local global_buffs = {
     [46924] = "Immune", -- Bladestorm (Warrior)
     [642] = "Immune", -- Divine Shield (Paladin)
     [45438] = "Immune", -- Ice Block (Mage)
@@ -268,7 +249,7 @@ local function WLoseControl_UpdateBar()
     else
         bar:EnableMouse(true)
     end
-    if WLoseControlDB.timer then
+    if WLoseControlDB.timer == true then
         bar.text:Show()
     else
         bar.text:Hide()
@@ -436,7 +417,7 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
                 break
 
                 -- or display any other if not black listed
-            elseif not pve_blacklisted[sid] then
+            elseif not global_blacklisted[sid] and not pve_blacklisted[sid] then
                 -- using shouldConsolidate as a trash filter (don t know if it can be 1 on debuffs though)
                 if shouldConsolidate <= local_shouldConsolidate then
                     local_spell_id = sid
@@ -450,7 +431,8 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
                 if sid ~= global_spell_id then
                     if global_debug == 1 then
                         if not WLoseControlDB.PVEauras[sid] then
-                            WLoseControlDB.PVEauras[sid] = GetRealZoneText .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) " - " .. tostring(shouldConsolidate);
+                            local temp = GetRealZoneText()
+                            WLoseControlDB.PVEauras[sid] = temp .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate);
                         end
                     end
                 end
@@ -459,20 +441,22 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
         elseif zonetype == 2 then
             --PVP (arena, pvp aka bg, none aka outworld)
             if (
-                    -- among listed
-                    pvp_debuffs[sid] and (
-                            -- first listed found
-                            not pvp_debuffs[local_spell_id]
-                                    -- has higher priority
-                                    or buffTypePriority[pvp_debuffs[sid]] > buffTypePriority[pvp_debuffs[local_spell_id]]
-                                    -- same priority but longer duration (for example two stuns and second is longer)
-                                    or buffTypePriority[pvp_debuffs[local_spell_id]] == buffTypePriority[pvp_debuffs[sid]] and expirationtime > local_expiration_time
+                    not global_blacklisted[sid] and not pvp_blacklisted[sid] and (
+                            -- among listed
+                            pvp_debuffs[sid] and (
+                                    -- first listed found
+                                    not pvp_debuffs[local_spell_id]
+                                            -- has higher priority
+                                            or buffTypePriority[pvp_debuffs[sid]] > buffTypePriority[pvp_debuffs[local_spell_id]]
+                                            -- same priority but longer duration (for example two stuns and second is longer)
+                                            or buffTypePriority[pvp_debuffs[local_spell_id]] == buffTypePriority[pvp_debuffs[sid]] and expirationtime > local_expiration_time
+                            )
+                                    -- first found
+                                    or not local_spell_id
+                                    -- choosing between already found and not listed
+                                    -- using shouldConsolidate as a trash filter (don t know if it can be 1 on debuffs though)
+                                    or not pvp_debuffs[local_spell_id] and shouldConsolidate <= local_shouldConsolidate
                     )
-                            -- first found
-                            or not local_spell_id
-                            -- choosing between already found and not listed
-                            -- using shouldConsolidate as a trash filter (don t know if it can be 1 on debuffs though)
-                            or not pvp_debuffs[local_spell_id] and shouldConsolidate <= local_shouldConsolidate
             )
             then
                 local_spell_id = sid
@@ -487,7 +471,8 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
                     _, temp_zone_type = IsInInstance()
                     -- not including levelling and other world spells trash
                     if temp_zone_type ~= "none" and not WLoseControlDB.PVPauras[sid] then
-                        WLoseControlDB.PVPauras[sid] = GetRealZoneText .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) " - " .. tostring(shouldConsolidate);
+                        local temp = GetRealZoneText()
+                        WLoseControlDB.PVPauras[sid] = temp .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate);
                     end
                 end
             end
@@ -507,13 +492,13 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
 
             if (
                     -- among listed
-                    buffs[sid] and (
+                    global_buffs[sid] and (
                             -- first listed found
-                            not buffs[local_spell_id]
+                            not global_buffs[local_spell_id]
                                     -- has higher priority
-                                    or buffTypePriority[buffs[sid]] > buffTypePriority[buffs[local_spell_id]]
+                                    or buffTypePriority[global_buffs[sid]] > buffTypePriority[global_buffs[local_spell_id]]
                                     -- same priority but longer duration (for example two stuns and second is longer)
-                                    or buffTypePriority[buffs[local_spell_id]] == buffTypePriority[buffs[sid]] and expirationtime > local_expiration_time
+                                    or buffTypePriority[global_buffs[local_spell_id]] == buffTypePriority[global_buffs[sid]] and expirationtime > local_expiration_time
                     )
                     -- not spamming any buff
 
@@ -529,6 +514,16 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
                 local_duration = duration
                 local_expiration_time = expirationtime
                 local_shouldConsolidate = shouldConsolidate
+            else
+                if global_debug == 1 then
+                    local temp_zone_type
+                    _, temp_zone_type = IsInInstance()
+                    -- not including levelling and other world spells trash
+                    if temp_zone_type ~= "none" and not WLoseControlDB.BuffAuras[sid] then
+                        local temp = GetRealZoneText()
+                        WLoseControlDB.BuffAuras[sid] = temp .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate);
+                    end
+                end
             end
         end
     end
@@ -596,6 +591,7 @@ local cmdfuncs = {
     end,
     timer = function()
         WLoseControlDB.timer = not WLoseControlDB.timer
+        WLoseControl_UpdateBar()
     end,
     reset = function()
         WLoseControl_Reset()
@@ -618,20 +614,18 @@ function WLoseControl_Command(cmd)
         local s = tonumber(cmdtbl[2])
         cb(s)
     else
-        ChatFrame1:AddMessage("WLoseControl Options | /wlc <option>", 0, 1, 0)
-        ChatFrame1:AddMessage("-- scale <number> | value: " .. WLoseControlDB.scale, 0, 1, 0)
-        ChatFrame1:AddMessage("-- hidden (toggle) | value: " .. tostring(WLoseControlDB.hidden), 0, 1, 0)
-        ChatFrame1:AddMessage("-- lock (toggle) | value: " .. tostring(WLoseControlDB.lock), 0, 1, 0)
-        ChatFrame1:AddMessage("-- timer (toggle) | value: " .. tostring(WLoseControlDB.timer), 0, 1, 0)
-        ChatFrame1:AddMessage("-- clear (execute) | clear gathered spell ids debug lists", 0, 1, 0)
-        ChatFrame1:AddMessage("-- test (execute)", 0, 1, 0)
-        ChatFrame1:AddMessage("-- reset (execute)", 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("WLoseControl Options | /wlc <option>", 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- scale <number> | value: " .. WLoseControlDB.scale, 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- hidden (toggle) | value: " .. tostring(WLoseControlDB.hidden), 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- lock (toggle) | value: " .. tostring(WLoseControlDB.lock), 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- timer (toggle) | value: " .. tostring(WLoseControlDB.timer), 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- clear (execute) | clear gathered spell ids debug lists", 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- test (execute)", 0, 1, 0)
+        SELECTED_CHAT_FRAME:AddMessage("-- reset (execute)", 0, 1, 0)
     end
 end
 
 local function WLoseControl_OnLoad(self)
-    self:RegisterEvent("PLAYER_ENTERING_WORLD")
-    self:RegisterEvent("UNIT_AURA")
     if not WLoseControlDB.scale then
         WLoseControlDB.scale = 2
     end
@@ -650,13 +644,18 @@ local function WLoseControl_OnLoad(self)
     if not WLoseControlDB.PVEauras then
         WLoseControlDB.PVEauras = {}
     end
+    if not WLoseControlDB.BuffAuras then
+        WLoseControlDB.BuffAuras = {}
+    end
     WLoseControl_CreateBar()
 
     SlashCmdList["WLoseControl"] = WLoseControl_Command
     SLASH_WLoseControl1 = "/wlc"
 
-    ChatFrame1:AddMessage("WLoseControl loaded. Type /wlc for options.", 0, 1, 0)
+    DEFAULT_CHAT_FRAME:AddMessage("WLoseControl loaded. Type /wlc for options.", 0, 1, 0)
 
+    self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("UNIT_AURA")
     WLoseControl_PLAYER_ENTERING_WORLD(self)
 end
 
