@@ -4,7 +4,7 @@
 -- disable it, set 0 (to stop logging unknown spell ids to SavedVariables in wow\WTF\Account\<acc_name>\SavedVariables\<addon_name>.lua)
 -- later you can add them to the lists
 local global_debug = 1;
-
+-- priorities (same can be overriden only with higher)
 local pvp_debuffs = {
     -- Other
     [1604] = "Snare", -- Dazed
@@ -138,59 +138,76 @@ local pvp_debuffs = {
     [13099] = "Root", -- Net-o-Matic
     [29703] = "Snare", -- Dazed
 }
--- priorities not applicable, but order in array is important (first found taken)
+-- priorities (same can be overriden only with higher)
 local pve_debuffs = {
-    -- Immunities
-    --[69127] = "Immune",	-- chill of the throne
     --rotface
-    [73023] = "Immune", -- mutated infection
+    [73023] = "highest", -- mutated infection
     --festergut
-    [73020] = "Immune", -- vile gas
-    [72103] = "Immune", -- inoculated
+    [73020] = "highest", -- vile gas
+    [72103] = "highest", -- inoculated
     --sindra
-    [70126] = "Immune", -- frost beacon
-    [70157] = "Immune", -- ice tomb
-    [69762] = "Immune", -- unchained magic
-    [69766] = "Immune", -- instability
+    [70126] = "highest", -- frost beacon
+    [70157] = "highest", -- ice tomb
+    [69762] = "highest", -- unchained magic
+    [69766] = "highest", -- instability
     --valythria
-    [70766] = "Immune", -- dream state
-    [71941] = "Immune", -- twisted nightmares
+    [70766] = "highest", -- dream state
+    [71941] = "highest", -- twisted nightmares
     --deathbringer saurfang
-    [72443] = "Immune", -- boiling blood
+    [72443] = "highest", -- boiling blood
     --lady deathwhisper
-    [71289] = "Immune", -- dominate mind
-    [71237] = "Immune", -- curse of torpor
-    --[71001] = "Immune",	-- death and decay
+    [71289] = "highest", -- dominate mind
+    [71237] = "highest", -- curse of torpor
+    --[71001] = "highest",	-- death and decay
     --lord marrowgar
-    [69065] = "Immune", -- impaled
+    [69065] = "highest", -- impaled
 }
 -- priorities not applicable
-local pvp_blacklisted = {
+local pvp_debuffs_blacklisted = {
     --prof
     --[73117] = "Immune",	-- plague sickness
 }
 -- priorities not applicable
-local global_blacklisted = {
+local global_debuffs_blacklisted = {
     [26013] = "Immune", -- BG Deserter
     [25771] = "Immune", -- forbearance
     [57723] = "Immune", -- exhaustion
     [6788] = "Immune", -- weakened soul
 }
 -- priorities not applicable
-local pve_blacklisted = {
+local pve_debuffs_blacklisted = {
     --prof
     --[73117] = "Immune",	-- plague sickness
     --sindra
     [71052] = "Immune", -- frost aura
 }
+-- priorities (same can be overriden only with higher)
 local global_buffs = {
-    [46924] = "Immune", -- Bladestorm (Warrior)
-    [642] = "Immune", -- Divine Shield (Paladin)
-    [45438] = "Immune", -- Ice Block (Mage)
-    [34692] = "Immune", -- The Beast Within (Hunter)
+    [54149] = "CC", -- Infusion of Light
     [31821] = "Immune", -- aura mastery
     [10278] = "Immune", -- BOP
-    [1044] = "Root", -- FREEDOM
+    [54428] = "Immune", -- Divine Plea
+    [53659] = "first_aura", -- Sacred Cleansing
+    [46924] = "CC", -- Bladestorm (Warrior)
+    [45438] = "highest", -- Ice Block (Mage)
+    [34692] = "CC", -- The Beast Within (Hunter)
+    [1044] = "Immune", -- FREEDOM
+    [642] = "highest", -- Divine Shield (Paladin)
+}
+-- priority (the more the higher), you can insert another one...
+local buffTypePriority = {
+    ["highest"] = 170,
+    ["high"] = 160,
+    ["Silence"] = 150,
+    ["CC"] = 140,
+    ["Immune"] = 135,
+    ["first_aura"] = 130,
+    ["mid_aura"] = 120,
+    ["Root"] = 110,
+    ["low_aura"] = 80,
+    ["Snare"] = 60,
+    ["not_rated"] = 40,
+    ["lowest"] = 20
 }
 
 --for k, v in pairs(buffs1) do
@@ -199,17 +216,6 @@ local global_buffs = {
 --        buffs[name] = v
 --    end
 --end
-
--- priority (the more the higher)
-local buffTypePriority = {
-    ["high"] = 10,
-    ["Silence"] = 7,
-    ["CC"] = 6,
-    ["Immune"] = 5,
-    ["Root"] = 4,
-    ["Snare"] = 3,
-    ["low"] = 1
-}
 
 local frame
 local bar
@@ -417,7 +423,7 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
                 break
 
                 -- or display any other if not black listed
-            elseif not global_blacklisted[sid] and not pve_blacklisted[sid] then
+            elseif not global_debuffs_blacklisted[sid] and not pve_debuffs_blacklisted[sid] then
                 -- using shouldConsolidate as a trash filter (don t know if it can be 1 on debuffs though)
                 if shouldConsolidate <= local_shouldConsolidate then
                     local_spell_id = sid
@@ -441,7 +447,7 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
         elseif zonetype == 2 then
             --PVP (arena, pvp aka bg, none aka outworld)
             if (
-                    not global_blacklisted[sid] and not pvp_blacklisted[sid] and (
+                    not global_debuffs_blacklisted[sid] and not pvp_debuffs_blacklisted[sid] and (
                             -- among listed
                             pvp_debuffs[sid] and (
                                     -- first listed found
@@ -472,57 +478,55 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
                     -- not including levelling and other world spells trash
                     if temp_zone_type ~= "none" and not WLoseControlDB.PVPauras[sid] then
                         local temp = GetRealZoneText()
-                        WLoseControlDB.PVPauras[sid] = temp .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate);
+                        WLoseControlDB.PVPauras[sid] = name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate) .. " : " .. temp;
                     end
                 end
             end
         end
     end
 
-    -- if no debuffs check buffs
-    if not local_spell_id then
-        for i = 1, 40 do
-            local name, _, icon, _, _, duration, expirationtime, _, _, shouldConsolidate, sid = UnitBuff(affectedUnit, i)
-            if not sid then
-                break
-            end
-            if shouldConsolidate == nil then
-                shouldConsolidate = 0
-            end
+    -- buffs
+    for i = 1, 40 do
+        local name, _, icon, _, _, duration, expirationtime, _, _, shouldConsolidate, sid = UnitBuff(affectedUnit, i)
+        if not sid then
+            break
+        end
+        if shouldConsolidate == nil then
+            shouldConsolidate = 0
+        end
 
-            if (
-                    -- among listed
-                    global_buffs[sid] and (
-                            -- first listed found
-                            not global_buffs[local_spell_id]
-                                    -- has higher priority
-                                    or buffTypePriority[global_buffs[sid]] > buffTypePriority[global_buffs[local_spell_id]]
-                                    -- same priority but longer duration (for example two stuns and second is longer)
-                                    or buffTypePriority[global_buffs[local_spell_id]] == buffTypePriority[global_buffs[sid]] and expirationtime > local_expiration_time
-                    )
-                    -- not spamming any buff
+        if (
+                -- among listed
+                global_buffs[sid] and (
+                        -- first listed found
+                        not global_buffs[local_spell_id]
+                                -- has higher priority
+                                or buffTypePriority[global_buffs[sid]] > buffTypePriority[global_buffs[local_spell_id]]
+                                -- same priority but shorter duration (for example two buffs and second ends)
+                                or buffTypePriority[global_buffs[local_spell_id]] == buffTypePriority[global_buffs[sid]] and expirationtime < local_expiration_time
+                )
+                -- not spamming any buff
 
-                    -- first found
-                    --or not local_spell_id
-                    -- choosing between already found and not listed
-                    -- using shouldConsolidate as a trash filter (don t know if it can be 1 on debuffs though)
-                    --or not buffs[local_spell_id] and shouldConsolidate <= local_shouldConsolidate
-            )
-            then
-                local_spell_id = sid
-                local_icon = icon
-                local_duration = duration
-                local_expiration_time = expirationtime
-                local_shouldConsolidate = shouldConsolidate
-            else
-                if global_debug == 1 then
-                    local temp_zone_type
-                    _, temp_zone_type = IsInInstance()
-                    -- not including levelling and other world spells trash
-                    if temp_zone_type ~= "none" and not WLoseControlDB.BuffAuras[sid] then
-                        local temp = GetRealZoneText()
-                        WLoseControlDB.BuffAuras[sid] = temp .. " : " .. name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate);
-                    end
+                -- first found
+                --or not local_spell_id
+                -- choosing between already found and not listed
+                -- using shouldConsolidate as a trash filter (don t know if it can be 1 on debuffs though)
+                --or not buffs[local_spell_id] and shouldConsolidate <= local_shouldConsolidate
+        )
+        then
+            local_spell_id = sid
+            local_icon = icon
+            local_duration = duration
+            local_expiration_time = expirationtime
+            local_shouldConsolidate = shouldConsolidate
+        else
+            if global_debug == 1 then
+                local temp_zone_type
+                _, temp_zone_type = IsInInstance()
+                -- not including levelling and other world spells trash
+                if temp_zone_type ~= "none" and not WLoseControlDB.BuffAuras[sid] then
+                    local temp = GetRealZoneText()
+                    WLoseControlDB.PVPauras[sid] = name .. " - " .. tostring(dtype) .. " - " .. tostring(duration) .. " - " .. tostring(shouldConsolidate) .. " : " .. temp;
                 end
             end
         end
@@ -535,10 +539,6 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
             global_expiration_time = local_expiration_time
             WLoseControl_StartTimer(local_icon, local_expiration_time)
         end
-        --elseif local_duration <= 0 then
-        --    global_spell_id = ""
-        --    global_expiration_time = 0
-        --    WLoseControl_StopAbility()
     end
 
 end

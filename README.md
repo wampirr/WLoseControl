@@ -18,5 +18,7 @@ Details:
 - buff and debuff control right in lua file(sry guys):
   add lines with spellIds found in a wowDB you like
   or
-  in chat(with debug enabled and spell not added already)
+  in <wow_folder>\WTF\Account\<account_name>\SavedVariables\wLoseControl.lua (list of seen ids)
+- priority is shared between buffs and debuffs
+(higher prio buff is shown over low prio debuff, debuff is shown if prio equals)  
   ...
