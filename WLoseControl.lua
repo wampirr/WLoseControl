@@ -311,23 +311,31 @@ local function WLoseControl_CreateBar()
     WLoseControl_LoadPosition()
 end
 
+local green_bool = 1
 local function WLoseControl_UpdateText(cooldown)
-    if cooldown > 60 then
-        bar.text:SetText("")
+
+    if cooldown < 6 then
+        if green_bool == 1 then
+            bar.text:SetTextColor(1, 0, 0, 1)
+            green_bool = 0
+        end
+    else
+        if green_bool == 0 then
+            bar.text:SetTextColor(1, 1, 0, 1)
+            green_bool = 1
+        end
     end
+
     if cooldown < 10 then
         if cooldown <= 0.1 then
             bar.text:SetText("")
         else
             bar.text:SetFormattedText("%1.1f", cooldown)
         end
+    elseif cooldown > 60 then
+        bar.text:SetText("")
     else
         bar.text:SetFormattedText("%d", cooldown)
-    end
-    if cooldown < 6 then
-        bar.text:SetTextColor(1, 0, 0, 1)
-    else
-        bar.text:SetTextColor(1, 1, 0, 1)
     end
 end
 
@@ -341,11 +349,11 @@ local function WLoseControl_StopAbility()
     bar.cd:Hide()
 end
 
-local time = 0
-local tttime = 0.1
+local elapsed_time = 0
+local visual_time_step = 0.1
 local function WLoseControl_OnUpdate(self, elapsed)
-    time = time + elapsed
-    if time > tttime then
+    elapsed_time = elapsed_time + elapsed
+    if elapsed_time > visual_time_step then
         bar.cooldown = bar.start + bar.duration - GetTime()
         if bar.cooldown <= 0 then
             WLoseControl_StopAbility()
@@ -353,22 +361,23 @@ local function WLoseControl_OnUpdate(self, elapsed)
         else
             WLoseControl_UpdateText(bar.cooldown)
         end
-        time = time - tttime
+        elapsed_time = elapsed_time - visual_time_step
     end
 end
 
+local temp_timer_time
 local function WLoseControl_StartTimer(icon, expirationtime)
     if WLoseControlDB.hidden then
         bar:Show()
     end
     if expirationtime ~= 0 then
-        local time1 = GetTime()
+        temp_timer_time = GetTime()
         bar.texture:SetTexture(icon)
-        bar.duration = expirationtime - time1
+        bar.duration = expirationtime - temp_timer_time
         bar.cd:Show()
         bar.cd:SetReverse(true)
-        bar.cd:SetCooldown(time1 - 0.40, bar.duration)
-        bar.start = time1
+        bar.cd:SetCooldown(temp_timer_time, bar.duration)
+        bar.start = temp_timer_time
         if WLoseControlDB.timer == true then
             WLoseControl_UpdateText(bar.duration)
         end
