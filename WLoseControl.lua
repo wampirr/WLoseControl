@@ -1,5 +1,5 @@
 ----------------------------------------------------
--- 
+-- logic is based on the original LoseControl by it's authors, thanks
 ----------------------------------------------------
 -- disable it, set 0 (to stop logging unknown spell ids to SavedVariables in wow\WTF\Account\<acc_name>\SavedVariables\<addon_name>.lua)
 -- later you can add them to the lists
@@ -114,6 +114,7 @@ local pvp_debuffs = {
     [24259] = "Silence", -- Spell Lock (Felhunter)
     [18118] = "Snare", -- Aftermath
     [18223] = "Snare", -- Curse of Exhaustion
+    [61291] = "Snare", -- Shadowflame
     -- Warrior
     [7922] = "CC", -- Charge Stun
     [12809] = "CC", -- Concussion Blow
@@ -548,6 +549,8 @@ local function WLoseControl_UNIT_AURA(affectedUnit)
             global_expiration_time = local_expiration_time
             WLoseControl_StartTimer(local_icon, local_expiration_time)
         end
+    else
+        WLoseControl_StopAbility();
     end
 
 end
